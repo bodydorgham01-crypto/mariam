@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>For You</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Marcellus&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Marcellus&family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@300;400;500;700&family=Dancing+Script:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -89,14 +89,73 @@
 
   <!-- Message -->
   <section class="message-section">
-    <p class="quote-mark">&#8220;</p>
-    <p class="message-text fade-in-text">
-      Every quiet moment I keep for us stacks up somewhere I can't see —
-      and somehow it still isn't enough. Whatever we're counting down to,
-      I'd wait through every second of it again just to arrive at you .
-    </p>
 
-    <p class="message-sign">Your khazo2</p>
+    <div class="envelope-scene" id="envelopeScene">
+      <div class="envelope" id="envelope" role="button" tabindex="0" aria-label="Open the letter">
+        <div class="bow" aria-hidden="true">
+          <span class="bow-loop bow-loop-l"></span>
+          <span class="bow-loop bow-loop-r"></span>
+          <span class="bow-tail bow-tail-a"></span>
+          <span class="bow-tail bow-tail-b"></span>
+          <span class="bow-center"></span>
+        </div>
+        <div class="envelope-back"></div>
+        <div class="envelope-flap" id="envelopeFlap"></div>
+      </div>
+      <p class="envelope-hint">دوسي عليه تفتحيه</p>
+    </div>
+
+    <div class="letter" id="letterContent">
+      <button class="letter-close-btn" id="closeLetterBtn" type="button" aria-label="اقفلي الظرف">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19"/></svg>
+      </button>
+      <p class="quote-mark">&#8220;</p>
+      <p class="message-text fade-in-text" dir="rtl">بصي👀…
+أنا مش بعرف أرتب الكلام أوي، بس هقولك اللي حاسس بيه وخلاص…
+
+إنتي مش مجرد حد عدى في حياتي،
+إنتي غيرتيني من غير ما تاخدي بالك
+
+أنا عارف إنك ساعات بتختفي، ومش بلومك،
+كلنا بنحتاج وقت لنفسنا…
+بس لما غيبتي الفترة اللي فاتت، حسيت إني تايه شوية،
+لأنك بقيتي جزء من يومي.
+
+ولو في يوم حبيتي تتكلمي مع حد، تفضفضي…
+أنا هبقى موجود.
+هسمعك للآخر، ومن غير ما أزهق،
+ولو عايزة تنكدي كمان 😂😂 نكّدي براحتك يا كنج…
+على قلبي زي العسل والله 🌹😍
+
+أنا عارف إنها فترات صعبة…
+بس هنعدّيها سوا.
+
+ومتخافيش تبقي على طبيعتك،
+لأن كل واحد محتاج مكان آمن يكون فيه نفسه من غير تصنّع…
+وأنا حابب أكون المكان ده ليكي
+(يا سلام يا واد يا بودي ع الحنية 😂😂😂)
+
+والمكان ده معمول علشانك إنتي…
+كل ما تحسي إنك زعلانة أو مخنوقة، ادخليلُه.
+
+هتلاقي فيه:
+أغنيتك المفضلة 🎧
+وشوية من صورك التحفة 📸
+ومع الوقت هنضيف أحلى لحظات في حياتك ✨
+(أحمم… أكيد أنا هبقى موجود يعني 😉)
+
+⸻
+
+دي الـ Safe Space بتاعتك…
+مكان تهربي له من أي حاجة تضايقك،
+وتلاقي فيه راحة حتى لو بسيطة…
+المهم إنها تساعدك تخرجي من اللي إنتي فيه ❤️
+
+⸻</p>
+
+      <p class="message-sign">Your khazo2</p>
+    </div>
+
   </section>
 
   <!-- Gallery -->
@@ -110,9 +169,9 @@
         <div class="gal-card" data-index="0"><img src="1.jpg" alt="Memory one" loading="lazy"></div>
         <div class="gal-card" data-index="1"><img src="4.jpg" alt="Memory two" loading="lazy"></div>
         <div class="gal-card" data-index="2"><img src="3.jpg" alt="Memory three" loading="lazy"></div>
-        <div class="gal-card" data-index="2"><img src="6.jpg" alt="Memory three" loading="lazy"></div>
-        <div class="gal-card" data-index="3"><img src="2.jpg" alt="Memory four" loading="lazy"></div>
-        <div class="gal-card" data-index="4"><img src="5.jpg" alt="Memory five" loading="lazy"></div>
+        <div class="gal-card" data-index="3"><img src="6.jpg" alt="Memory four" loading="lazy"></div>
+        <div class="gal-card" data-index="4"><img src="2.jpg" alt="Memory five" loading="lazy"></div>
+        <div class="gal-card" data-index="5"><img src="5.jpg" alt="Memory six" loading="lazy"></div>
       </div>
       <button class="gal-nav gal-next" id="galNext" aria-label="Next image">&#10095;</button>
     </div>
@@ -132,7 +191,7 @@
     <p class="eyebrow center">watch this</p>
     <h2 class="section-title">A Little Something</h2>
     <div class="video-frame">
-      <video controls poster="vedio/21.mp4">
+      <video controls>
         <source src="21.mp4" type="video/mp4">
         Your browser doesn't support embedded video.
       </video>

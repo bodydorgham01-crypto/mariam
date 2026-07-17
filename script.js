@@ -3,7 +3,7 @@
 ====================================================== */
 const CORRECT_PASSWORD = "1/6";            // <-- set your password here
 const START_DATE = new Date("2026-03-16T22:30:00"); // <-- counting up from this date
-const TARGET_LABEL = "first mwssage";        // <-- label shown above the counter
+const TARGET_LABEL = "Dear Mariam";        // <-- label shown above the counter
 
 /* ======================================================
    ELEMENT REFERENCES
@@ -88,6 +88,80 @@ loginForm.addEventListener('submit', (e) => {
     passwordInput.focus();
   }
 });
+
+/* ======================================================
+   ENVELOPE — open to reveal the letter
+====================================================== */
+const envelope      = document.getElementById('envelope');
+const envelopeScene  = document.getElementById('envelopeScene');
+const letterContent  = document.getElementById('letterContent');
+const closeLetterBtn = document.getElementById('closeLetterBtn');
+
+function openEnvelope(){
+  if (envelope.classList.contains('open')) return;
+  envelope.classList.add('open');
+
+  setTimeout(() => {
+    envelopeScene.classList.add('hide');
+    letterContent.classList.add('show');
+  }, 800);
+}
+
+let isClosingLetter = false;
+
+function closeEnvelope(){
+  if (!envelope.classList.contains('open') || isClosingLetter) return;
+  isClosingLetter = true;
+
+  // 1) the letter shrinks + fades, as if sliding back inside the envelope
+  letterContent.classList.add('closing');
+
+  setTimeout(() => {
+    letterContent.classList.remove('show', 'closing');
+    envelopeScene.classList.remove('hide');
+
+    // 2) let the envelope fade back in first, then replay the flap closing (reversed)
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        envelope.classList.remove('open');
+
+        // 3) once the flap has finished swinging shut, give it a little settle bounce
+        setTimeout(() => {
+          envelope.classList.add('settle');
+          setTimeout(() => {
+            envelope.classList.remove('settle');
+            isClosingLetter = false;
+          }, 520);
+        }, 900);
+      }, 80);
+    });
+  }, 400);
+}
+
+/* Entrance — the envelope drops in and bounces into place on its own
+   the moment it scrolls into view, no click or extra scrolling needed */
+if ('IntersectionObserver' in window){
+  const envelopeObserver = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting){
+        envelopeScene.classList.add('enter-ready');
+        obs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.35 });
+  envelopeObserver.observe(envelopeScene);
+} else {
+  envelopeScene.classList.add('enter-ready');
+}
+
+envelope.addEventListener('click', openEnvelope);
+envelope.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' '){
+    e.preventDefault();
+    openEnvelope();
+  }
+});
+closeLetterBtn.addEventListener('click', closeEnvelope);
 
 /* ======================================================
    COUNT-UP TIMER
