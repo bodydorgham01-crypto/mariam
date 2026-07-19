@@ -240,7 +240,6 @@
       mainPage.classList.add('visible');
     });
     startTimer();
-    document.body.addEventListener('click', tryAutoplayMusicOnce, { once: true });
     loadUploadedGallery();
     loadSavedVoiceNotes();
   }
@@ -481,18 +480,7 @@
   }
 
   /* ---- background music ---- */
-  function tryAutoplayMusicOnce() {
-    bgMusic.volume = 0.5;
-    const playPromise = bgMusic.play();
-    if (playPromise && playPromise.then) {
-      playPromise.then(() => {
-        musicToggle.setAttribute('aria-pressed', 'true');
-      }).catch(() => {
-        // Autoplay blocked — user can still tap the button manually.
-        musicToggle.setAttribute('aria-pressed', 'false');
-      });
-    }
-  }
+  bgMusic.volume = 0.5;
 
   musicToggle.addEventListener('click', () => {
     if (bgMusic.paused) {
@@ -750,7 +738,13 @@
     statusEl.textContent = 'بترفع دلوقتي...';
 
     try {
-      const fileName = `${fileNamePrefix || 'file'}_${Date.now()}_${file.name || ''}`;
+      // بننضّف اسم الملف عشان الـ public_id بتاع Cloudinary بيرفض مسافات وحروف
+      // خاصة وعربي أحيانًا — فبنسيب بس حروف/أرقام إنجليزي وشرطة تحتية.
+      const cleanName = (file.name || 'file')
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .slice(0, 40) || 'file';
+      const fileName = `${fileNamePrefix || 'file'}_${Date.now()}_${cleanName}`;
 
       const formData = new FormData();
       formData.append('file', file);
