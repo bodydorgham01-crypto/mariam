@@ -1,352 +1,914 @@
-/* ======================================================
-   EDITABLE SETTINGS — change these to personalize
-====================================================== */
-const CORRECT_PASSWORD = "1/6";            // <-- set your password here
-const START_DATE = new Date("2026-03-16T22:30:00"); // <-- counting up from this date
-const TARGET_LABEL = "Dear Mariam";        // <-- label shown above the counter
+(() => {
+  'use strict';
 
-/* ======================================================
-   ELEMENT REFERENCES
-====================================================== */
-const loginScreen   = document.getElementById('loginScreen');
-const loadingScreen = document.getElementById('loadingScreen');
-const mainPage       = document.getElementById('mainPage');
-const loginForm      = document.getElementById('loginForm');
-const passwordInput  = document.getElementById('passwordInput');
-const errorMsg       = document.getElementById('errorMsg');
+  /* ============================================
+     CONFIG — edit these two things for your gift
+     ============================================ */
+  const PASSWORD = '1/6'; // change this to whatever you like
+  const START_DATE = new Date('2026-03-16T10:30:00');
 
-/* ======================================================
-   FLOATING EMBERS / HEARTS BACKGROUND
-====================================================== */
-const embersContainer = document.getElementById('embers');
-const HEART_GLYPHS = ['&#10084;', '&#10084;', '&#10084;'];
+  // ⚠️ حطي هنا الـ Cloud name بتاعك من Cloudinary (بيرفع الملفات نفسها)
+  const CLOUDINARY_CLOUD_NAME = 'lgqgnlkb';
+  // ⚠️ اسم الـ unsigned upload preset اللي هتعمليه في Cloudinary
+  const CLOUDINARY_UPLOAD_PRESET = 'mariam';
 
-function spawnEmber(){
-  const ember = document.createElement('span');
-  ember.className = 'ember';
-  ember.innerHTML = HEART_GLYPHS[Math.floor(Math.random() * HEART_GLYPHS.length)];
-  const left = Math.random() * 100;
-  const size = 8 + Math.random() * 16;
-  const duration = 7 + Math.random() * 8;
-  const drift = (Math.random() * 120 - 60) + 'px';
+  // ⚠️ حطي هنا Project URL و anon public key بتوع Supabase (من Settings → API)
+  // Supabase هنا بيستخدم كـ "فهرس" بس (جدول صغير فيه روابط الملفات)، مش تخزين
+  // الملفات نفسها — الملفات كلها على Cloudinary.
+  const SUPABASE_URL = 'https://proezqdxmypnmlhhhljb.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByb2V6cWR4bXlwbm1saGhobGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjAzMDUsImV4cCI6MjEwMDAzNjMwNX0.E6o0MviAY8emIrE4GdTKxwS6ZF8ZZNqUL5njR4E-1jo';
+  const SUPABASE_TABLE = 'media_items';
 
-  ember.style.left = left + 'vw';
-  ember.style.fontSize = size + 'px';
-  ember.style.animationDuration = duration + 's';
-  ember.style.setProperty('--drift', drift);
+  const WRONG_PASSWORD_MESSAGES = [
+    "لا غلط",
+    "لا ركزي، في ايه ده سهل",
+    "يووه تاريخ ميلاد يا كنج",
+    "(1/6) تاريخ ميلادك يا ستي قرفتينا"
+  ];
+  let wrongAttempts = 0;
 
-  embersContainer.appendChild(ember);
-  setTimeout(() => ember.remove(), duration * 1000 + 200);
-}
+  /* ============================================
+     ELEMENT REFS
+     ============================================ */
+  const loginScreen = document.getElementById('loginScreen');
+  const loginForm = document.getElementById('loginForm');
+  const passwordInput = document.getElementById('passwordInput');
+  const loginError = document.getElementById('loginError');
 
-// gentle continuous stream
-setInterval(spawnEmber, 650);
-for (let i = 0; i < 6; i++) setTimeout(spawnEmber, i * 300);
+  const hackScreen = document.getElementById('hackScreen');
+  const hackLines = document.getElementById('hackLines');
+  const hackProgressBar = document.getElementById('hackProgressBar');
+  const warningIcon = document.getElementById('warningIcon');
 
-/* ======================================================
-   LOGIN LOGIC
-====================================================== */
-function showScreen(el){
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  el.classList.add('active');
-}
+  const mainPage = document.getElementById('mainPage');
 
-const WRONG_PASSWORD_MESSAGES = [
-  "لا غلط",
-  "لا ركزي، في ايه ده سهل",
-  "يووه تاريخ ميلاد يا كنج",
-  "(1/6) تاريخ ميلادك يا ستي قرفتينا"
-];
-let wrongAttempts = 0;
+  const bgMusic = document.getElementById('bgMusic');
+  const musicToggle = document.getElementById('musicToggle');
 
-loginForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const value = passwordInput.value.trim();
+  const heartsField = document.getElementById('heartsField');
 
-  if (value === CORRECT_PASSWORD){
-    errorMsg.classList.remove('show');
-    wrongAttempts = 0;
-    showScreen(loadingScreen);
+  const envelope = document.getElementById('envelope');
+  const messageOverlay = document.getElementById('messageOverlay');
+  const messageClose = document.getElementById('messageClose');
 
-    // simulate a soft "opening the door" beat before revealing the main page
-    setTimeout(() => {
-      showScreen(mainPage);
-      startMusic();
-    }, 1600);
+  const gallerySlider = document.getElementById('gallerySlider');
+  const imageModal = document.getElementById('imageModal');
+  const modalImage = document.getElementById('modalImage');
+  const modalClose = document.getElementById('modalClose');
+  const modalPrev = document.getElementById('modalPrev');
+  const modalNext = document.getElementById('modalNext');
 
-  } else {
-    const msgIndex = wrongAttempts % WRONG_PASSWORD_MESSAGES.length;
-    errorMsg.textContent = WRONG_PASSWORD_MESSAGES[msgIndex];
-    wrongAttempts++;
+  const viewAllBtn = document.getElementById('viewAllBtn');
+  const galleryGridModal = document.getElementById('galleryGridModal');
+  const galleryGridClose = document.getElementById('galleryGridClose');
+  const galleryGrid = document.getElementById('galleryGrid');
 
-    errorMsg.classList.add('show');
-    passwordInput.classList.remove('shake');
-    // restart shake animation
-    void passwordInput.offsetWidth;
-    passwordInput.classList.add('shake');
-    passwordInput.value = '';
-    passwordInput.focus();
+  const viewAllVideosBtn = document.getElementById('viewAllVideosBtn');
+  const videoGridModal = document.getElementById('videoGridModal');
+  const videoGridClose = document.getElementById('videoGridClose');
+  const videoGrid = document.getElementById('videoGrid');
+  const videoLightbox = document.getElementById('videoLightbox');
+  const videoLightboxPlayer = document.getElementById('videoLightboxPlayer');
+  const videoLightboxClose = document.getElementById('videoLightboxClose');
+
+  const voiceActions = document.getElementById('voiceActions');
+  const viewAllVoicesBtn = document.getElementById('viewAllVoicesBtn');
+  const voiceGridModal = document.getElementById('voiceGridModal');
+  const voiceGridClose = document.getElementById('voiceGridClose');
+  const voiceGrid = document.getElementById('voiceGrid');
+
+  /* ============================================
+     AMBIENT FLOATING HEARTS
+     ============================================ */
+  function spawnHeart() {
+    const heart = document.createElement('span');
+    heart.className = 'floating-heart';
+    heart.textContent = '♥';
+    const size = 10 + Math.random() * 18;
+    heart.style.left = Math.random() * 100 + 'vw';
+    heart.style.fontSize = size + 'px';
+    heart.style.setProperty('--drift', (Math.random() * 80 - 40) + 'px');
+    const duration = 9 + Math.random() * 8;
+    heart.style.animationDuration = duration + 's';
+    heartsField.appendChild(heart);
+    setTimeout(() => heart.remove(), duration * 1000 + 500);
   }
-});
 
-/* ======================================================
-   ENVELOPE — open to reveal the letter
-====================================================== */
-const envelope      = document.getElementById('envelope');
-const envelopeScene  = document.getElementById('envelopeScene');
-const letterContent  = document.getElementById('letterContent');
-const closeLetterBtn = document.getElementById('closeLetterBtn');
+  const heartInterval = setInterval(spawnHeart, 900);
+  for (let i = 0; i < 6; i++) setTimeout(spawnHeart, i * 300);
 
-function openEnvelope(){
-  if (envelope.classList.contains('open')) return;
-  envelope.classList.add('open');
+  /* ============================================
+     1) LOGIN
+     ============================================ */
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const value = passwordInput.value.trim();
 
-  setTimeout(() => {
-    envelopeScene.classList.add('hide');
-    letterContent.classList.add('show');
-  }, 800);
-}
+    if (value.length === 0) {
+      showLoginError('Type something for me first.');
+      return;
+    }
 
-let isClosingLetter = false;
+    if (value.toLowerCase() === PASSWORD.toLowerCase()) {
+      loginError.classList.remove('show');
+      beginHackSequence();
+    } else {
+      const msgIndex = Math.min(wrongAttempts, WRONG_PASSWORD_MESSAGES.length - 1);
+      showLoginError(WRONG_PASSWORD_MESSAGES[msgIndex]);
+      wrongAttempts++;
 
-function closeEnvelope(){
-  if (!envelope.classList.contains('open') || isClosingLetter) return;
-  isClosingLetter = true;
+      passwordInput.classList.remove('shake');
+      // force reflow so the animation can restart
+      void passwordInput.offsetWidth;
+      passwordInput.classList.add('shake');
+    }
+  });
 
-  // 1) the letter shrinks + fades, as if sliding back inside the envelope
-  letterContent.classList.add('closing');
+  function showLoginError(msg) {
+    loginError.textContent = msg;
+    loginError.classList.add('show');
+  }
 
-  setTimeout(() => {
-    letterContent.classList.remove('show', 'closing');
-    envelopeScene.classList.remove('hide');
+  /* ============================================
+     2) FAKE HACKING SCREEN
+     ============================================ */
+  const HACK_MESSAGES = [
+    'Initiating connection...',
+    'System Breached...',
+    'Accessing Private Data...',
+    'Bypassing Firewall...',
+    'Injecting...',
+    'ERROR...',
+    'Decrypting memories...',
+    'Access Granted.'
+  ];
 
-    // 2) let the envelope fade back in first, then replay the flap closing (reversed)
+  function beginHackSequence() {
+    loginScreen.classList.add('screen-exit');
+
+    setTimeout(() => {
+      loginScreen.setAttribute('aria-hidden', 'true');
+      loginScreen.classList.remove('screen-exit');
+      hackScreen.setAttribute('aria-hidden', 'false');
+      hackScreen.classList.add('glitching');
+      runHackTyping();
+      animateHackProgress();
+      playGlitchSound();
+    }, 600);
+  }
+
+  function runHackTyping() {
+    hackLines.innerHTML = '';
+    let lineIndex = 0;
+
+    function typeLine() {
+      if (lineIndex >= HACK_MESSAGES.length) return;
+
+      const lineEl = document.createElement('div');
+      lineEl.className = 'hack-line';
+      hackLines.appendChild(lineEl);
+
+      const text = HACK_MESSAGES[lineIndex];
+      let charIndex = 0;
+
+      const typeChar = () => {
+        if (charIndex <= text.length) {
+          lineEl.innerHTML = text.slice(0, charIndex) + '<span class="cursor"></span>';
+          charIndex++;
+          setTimeout(typeChar, 18 + Math.random() * 22);
+        } else {
+          lineEl.innerHTML = text;
+          lineIndex++;
+          setTimeout(typeLine, 90);
+        }
+      };
+      typeChar();
+    }
+    typeLine();
+  }
+
+  function animateHackProgress() {
+    hackProgressBar.style.transition = 'width 2.6s linear';
     requestAnimationFrame(() => {
-      setTimeout(() => {
-        envelope.classList.remove('open');
-
-        // 3) once the flap has finished swinging shut, give it a little settle bounce
-        setTimeout(() => {
-          envelope.classList.add('settle');
-          setTimeout(() => {
-            envelope.classList.remove('settle');
-            isClosingLetter = false;
-          }, 520);
-        }, 900);
-      }, 80);
+      hackProgressBar.style.width = '100%';
     });
-  }, 400);
-}
 
-/* Entrance — the envelope drops in and bounces into place on its own
-   the moment it scrolls into view, no click or extra scrolling needed */
-if ('IntersectionObserver' in window){
-  const envelopeObserver = new IntersectionObserver((entries, obs) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting){
-        envelopeScene.classList.add('enter-ready');
-        obs.unobserve(entry.target);
+    setTimeout(finishHackSequence, 4800);
+  }
+
+  function playGlitchSound() {
+    // Lightweight synthesized glitch blips via WebAudio — no external file needed.
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      let t = ctx.currentTime;
+      for (let i = 0; i < 6; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(120 + Math.random() * 500, t);
+        gain.gain.setValueAtTime(0.04, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.09);
+        t += 0.12 + Math.random() * 0.25;
+      }
+    } catch (err) {
+      // Audio not available — silently skip, the visuals still land.
+    }
+  }
+
+  function finishHackSequence() {
+    hackScreen.classList.remove('glitching');
+    hackScreen.classList.add('screen-exit');
+
+    setTimeout(() => {
+      hackScreen.setAttribute('aria-hidden', 'true');
+      hackScreen.classList.remove('screen-exit');
+      revealMainPage();
+    }, 700);
+  }
+
+  /* ============================================
+     3) MAIN PAGE REVEAL
+     ============================================ */
+  function revealMainPage() {
+    mainPage.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => {
+      mainPage.classList.add('visible');
+    });
+    startTimer();
+    document.body.addEventListener('click', tryAutoplayMusicOnce, { once: true });
+    loadUploadedGallery();
+    loadSavedVoiceNotes();
+  }
+
+  /* ---- جدول Supabase (فهرس بس) — بنسجّل فيه رابط كل ملف بعد ما يترفع على Cloudinary ---- */
+  function configReady() {
+    return SUPABASE_URL.indexOf('PASTE_') !== 0 && CLOUDINARY_CLOUD_NAME.indexOf('PASTE_') !== 0;
+  }
+
+  async function listFiles(category) {
+    if (!configReady()) return [];
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?category=eq.${encodeURIComponent(category)}&order=created_at.desc`;
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (!res.ok) return [];
+      const rows = await res.json();
+      return rows.map((row) => ({ name: row.name, url: row.url }));
+    } catch (err) {
+      // فشل هادئ — الموقع يشتغل عادي حتى لو الجلب فشل
+      return [];
+    }
+  }
+
+  async function loadUploadedGallery() {
+    const [images, videos] = await Promise.all([
+      listFiles('Images'),
+      listFiles('Videos')
+    ]);
+
+    images.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'gallery-card';
+      const img = document.createElement('img');
+      img.src = item.url;
+      img.alt = item.name || 'صورة محفوظة';
+      img.loading = 'lazy';
+      card.appendChild(img);
+      gallerySlider.appendChild(card);
+    });
+
+    videos.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'gallery-card gallery-card-video';
+      const video = document.createElement('video');
+      video.src = item.url;
+      video.controls = true;
+      video.preload = 'metadata';
+      video.playsInline = true;
+      video.title = item.name || 'فيديو محفوظ';
+      card.appendChild(video);
+      gallerySlider.appendChild(card);
+    });
+  }
+
+  // رابط تشغيل مباشر للصوت (بيسمح لعنصر <audio> يشغّل الملف زي ما هو، بدل الـ iframe بتاع Drive)
+
+  const WAVEFORM_BAR_COUNT = 28;
+
+  // بيبني بلاير صوت بشكل شبه فويس نوتس انستجرام/واتساب: زرار تشغيل + waveform بيرقص وقت التشغيل + وقت
+  function buildVoicePlayer(audioEl, { savedNote } = {}) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ig-voice-note' + (savedNote ? ' saved-note' : '');
+
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'ig-voice-play';
+    playBtn.innerHTML = '<span class="icon-play">▶</span><span class="icon-pause">❚❚</span>';
+
+    const waveform = document.createElement('div');
+    waveform.className = 'ig-voice-waveform';
+    for (let i = 0; i < WAVEFORM_BAR_COUNT; i++) {
+      const bar = document.createElement('span');
+      const height = 25 + Math.round(Math.random() * 75); // % ارتفاع عشوائي شكل طبيعي أكتر
+      bar.style.setProperty('--bar-h', height + '%');
+      bar.style.setProperty('--bar-delay', (Math.random() * 0.9).toFixed(2) + 's');
+      waveform.appendChild(bar);
+    }
+
+    const duration = document.createElement('span');
+    duration.className = 'ig-voice-duration';
+    duration.textContent = '0:00';
+
+    wrapper.appendChild(playBtn);
+    wrapper.appendChild(waveform);
+    wrapper.appendChild(duration);
+    wrapper.appendChild(audioEl);
+    audioEl.style.display = 'none';
+
+    function formatTime(sec) {
+      if (!isFinite(sec) || isNaN(sec)) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    audioEl.addEventListener('loadedmetadata', () => {
+      duration.textContent = formatTime(audioEl.duration);
+    });
+    audioEl.addEventListener('timeupdate', () => {
+      const remaining = audioEl.duration - audioEl.currentTime;
+      duration.textContent = formatTime(audioEl.paused ? audioEl.duration : remaining);
+    });
+    audioEl.addEventListener('play', () => wrapper.classList.add('playing'));
+    audioEl.addEventListener('pause', () => wrapper.classList.remove('playing'));
+    audioEl.addEventListener('ended', () => {
+      wrapper.classList.remove('playing');
+      duration.textContent = formatTime(audioEl.duration);
+    });
+
+    playBtn.addEventListener('click', () => {
+      // نوقف أي تسجيل تاني شغال عشان ميتكلموش فوق بعض
+      document.querySelectorAll('audio').forEach((a) => {
+        if (a !== audioEl && !a.paused) a.pause();
+      });
+      if (audioEl.paused) audioEl.play().catch(() => {});
+      else audioEl.pause();
+    });
+
+    return wrapper;
+  }
+
+  // بلاير الفويسات المحفوظة: بيستخدم نفس شكل الموجة الحلو بتاع الفويسات اللي
+  // بتتسجل لايف، بصوت حقيقي عن طريق الرابط العام بتاع الملف على Supabase.
+  function buildSavedVoiceItem(item) {
+    const li = document.createElement('li');
+    li.className = 'voice-note-item';
+
+    const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    audio.src = item.url;
+
+    li.appendChild(buildVoicePlayer(audio, { savedNote: true }));
+
+    return li;
+  }
+
+  let allSavedVoiceNotes = [];
+
+  async function loadSavedVoiceNotes() {
+    const notes = await listFiles('VoiceNotes');
+    allSavedVoiceNotes = notes;
+    const container = document.getElementById('savedVoiceNotesList');
+    const emptyMsg = document.getElementById('savedVoiceNotesEmpty');
+    if (!container) return;
+
+    if (notes.length === 0) {
+      if (voiceActions) voiceActions.style.display = 'none';
+      return; // خليه على رسالة "لسه مفيش" الافتراضية
+    }
+
+    if (emptyMsg) emptyMsg.remove();
+    container.innerHTML = '';
+
+    notes.slice(0, 3).forEach((item) => {
+      container.appendChild(buildSavedVoiceItem(item));
+    });
+
+    if (voiceActions) {
+      voiceActions.style.display = notes.length > 3 ? 'flex' : 'none';
+    }
+  }
+
+  function populateVoiceGrid() {
+    if (!voiceGrid) return;
+    voiceGrid.innerHTML = '';
+
+    if (allSavedVoiceNotes.length === 0) {
+      voiceGrid.innerHTML = '<p class="upload-status">لسه مفيش تسجيلات محفوظة</p>';
+      return;
+    }
+
+    allSavedVoiceNotes.forEach((item) => {
+      voiceGrid.appendChild(buildSavedVoiceItem(item));
+    });
+  }
+
+  function openVoiceGrid() {
+    populateVoiceGrid();
+    voiceGridModal.classList.add('visible');
+    voiceGridModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeVoiceGrid() {
+    // نوقف أي تسجيل شغال جوه المودال قبل ما نقفله
+    if (voiceGrid) {
+      voiceGrid.querySelectorAll('audio').forEach((a) => a.pause());
+    }
+    voiceGridModal.classList.remove('visible');
+    voiceGridModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if (viewAllVoicesBtn) viewAllVoicesBtn.addEventListener('click', openVoiceGrid);
+  if (voiceGridClose) voiceGridClose.addEventListener('click', closeVoiceGrid);
+  if (voiceGridModal) {
+    voiceGridModal.addEventListener('click', (e) => {
+      if (e.target === voiceGridModal) closeVoiceGrid();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && voiceGridModal && voiceGridModal.classList.contains('visible')) closeVoiceGrid();
+  });
+
+  /* ---- elapsed timer (count up) ---- */
+  const tDays = document.getElementById('tDays');
+  const tHours = document.getElementById('tHours');
+  const tMinutes = document.getElementById('tMinutes');
+  const tSeconds = document.getElementById('tSeconds');
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function updateTimer() {
+    const now = new Date();
+    let diff = Math.max(0, now - START_DATE);
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    diff -= days * (1000 * 60 * 60 * 24);
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    diff -= hours * (1000 * 60 * 60);
+    const minutes = Math.floor(diff / (1000 * 60));
+    diff -= minutes * (1000 * 60);
+    const seconds = Math.floor(diff / 1000);
+
+    tDays.textContent = pad(days);
+    tHours.textContent = pad(hours);
+    tMinutes.textContent = pad(minutes);
+    tSeconds.textContent = pad(seconds);
+  }
+
+  let timerInterval = null;
+  function startTimer() {
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+  }
+
+  /* ---- background music ---- */
+  function tryAutoplayMusicOnce() {
+    bgMusic.volume = 0.5;
+    const playPromise = bgMusic.play();
+    if (playPromise && playPromise.then) {
+      playPromise.then(() => {
+        musicToggle.setAttribute('aria-pressed', 'true');
+      }).catch(() => {
+        // Autoplay blocked — user can still tap the button manually.
+        musicToggle.setAttribute('aria-pressed', 'false');
+      });
+    }
+  }
+
+  musicToggle.addEventListener('click', () => {
+    if (bgMusic.paused) {
+      bgMusic.play().then(() => musicToggle.setAttribute('aria-pressed', 'true')).catch(() => {});
+    } else {
+      bgMusic.pause();
+      musicToggle.setAttribute('aria-pressed', 'false');
+    }
+  });
+
+  bgMusic.addEventListener('pause', () => musicToggle.setAttribute('aria-pressed', 'false'));
+  bgMusic.addEventListener('play', () => musicToggle.setAttribute('aria-pressed', 'true'));
+
+  /* ---- envelope / love letter ---- */
+  function openEnvelope() {
+    envelope.classList.add('opened');
+    setTimeout(() => {
+      messageOverlay.classList.add('visible');
+      messageOverlay.setAttribute('aria-hidden', 'false');
+    }, 350);
+  }
+
+  function closeEnvelope() {
+    messageOverlay.classList.remove('visible');
+    messageOverlay.setAttribute('aria-hidden', 'true');
+    setTimeout(() => {
+      envelope.classList.remove('opened');
+    }, 250);
+  }
+
+  envelope.addEventListener('click', openEnvelope);
+  envelope.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openEnvelope();
+    }
+  });
+  messageClose.addEventListener('click', closeEnvelope);
+  messageOverlay.addEventListener('click', (e) => {
+    if (e.target === messageOverlay) closeEnvelope();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && messageOverlay.classList.contains('visible')) closeEnvelope();
+  });
+
+  /* ---- gallery + fullscreen modal ---- */
+  // بنجيب كروت الصور "لايف" كل مرة، عشان اللي بيتضاف من Drive يشتغل معاها من غير ما نربط الأحداث من جديد
+  function getImageCards() {
+    return Array.from(gallerySlider.querySelectorAll('.gallery-card:not(.gallery-card-video)'));
+  }
+
+  let currentImageIndex = 0;
+
+  function openModal(index) {
+    const cards = getImageCards();
+    const img = cards[index] && cards[index].querySelector('img');
+    if (!img) return;
+    currentImageIndex = index;
+    modalImage.src = img.src;
+    modalImage.alt = img.alt;
+    imageModal.classList.add('visible');
+    imageModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal() {
+    imageModal.classList.remove('visible');
+    imageModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function showImage(delta) {
+    const cards = getImageCards();
+    currentImageIndex = (currentImageIndex + delta + cards.length) % cards.length;
+    const img = cards[currentImageIndex].querySelector('img');
+    modalImage.style.transform = 'scale(0.85)';
+    modalImage.style.opacity = '0';
+    setTimeout(() => {
+      modalImage.src = img.src;
+      modalImage.alt = img.alt;
+      modalImage.style.transform = 'scale(1)';
+      modalImage.style.opacity = '1';
+    }, 180);
+  }
+
+  // event delegation عشان يشتغل مع الكروت اللي بتتضاف بعد التحميل الأول برضو
+  gallerySlider.addEventListener('click', (e) => {
+    const card = e.target.closest('.gallery-card');
+    if (!card || card.classList.contains('gallery-card-video')) return;
+    const cards = getImageCards();
+    const index = cards.indexOf(card);
+    if (index > -1) openModal(index);
+  });
+
+  modalClose.addEventListener('click', closeModal);
+  modalPrev.addEventListener('click', () => showImage(-1));
+  modalNext.addEventListener('click', () => showImage(1));
+  imageModal.addEventListener('click', (e) => {
+    if (e.target === imageModal) closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!imageModal.classList.contains('visible')) return;
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'ArrowLeft') showImage(-1);
+    if (e.key === 'ArrowRight') showImage(1);
+  });
+
+  /* ---- "شوفي كل الصور" — full grid view instead of swiping ---- */
+  function populateGalleryGrid() {
+    galleryGrid.innerHTML = '';
+    const cards = getImageCards();
+    cards.forEach((card, index) => {
+      const img = card.querySelector('img');
+      if (!img) return;
+      const item = document.createElement('div');
+      item.className = 'gallery-grid-item';
+      const thumb = document.createElement('img');
+      thumb.src = img.src;
+      thumb.alt = img.alt;
+      thumb.loading = 'lazy';
+      item.appendChild(thumb);
+      item.addEventListener('click', () => {
+        closeGalleryGrid();
+        openModal(index);
+      });
+      galleryGrid.appendChild(item);
+    });
+  }
+
+  function openGalleryGrid() {
+    populateGalleryGrid(); // نبنيها من جديد كل مرة عشان تشمل أي صور اترفعت جديد من Drive
+    galleryGridModal.classList.add('visible');
+    galleryGridModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeGalleryGrid() {
+    galleryGridModal.classList.remove('visible');
+    galleryGridModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if (viewAllBtn) viewAllBtn.addEventListener('click', openGalleryGrid);
+  if (galleryGridClose) galleryGridClose.addEventListener('click', closeGalleryGrid);
+  galleryGridModal.addEventListener('click', (e) => {
+    if (e.target === galleryGridModal) closeGalleryGrid();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && galleryGridModal.classList.contains('visible')) closeGalleryGrid();
+  });
+
+  /* ---- "شوفي كل الفيديوهات" — grid of every uploaded video ---- */
+  function openVideoLightbox(url, title) {
+    videoLightboxPlayer.src = url;
+    videoLightboxPlayer.title = title || 'video';
+    videoLightbox.classList.add('visible');
+    videoLightbox.setAttribute('aria-hidden', 'false');
+    videoLightboxPlayer.play().catch(() => {});
+  }
+
+  function closeVideoLightbox() {
+    videoLightboxPlayer.pause();
+    videoLightboxPlayer.removeAttribute('src');
+    videoLightboxPlayer.load();
+    videoLightbox.classList.remove('visible');
+    videoLightbox.setAttribute('aria-hidden', 'true');
+  }
+
+  if (videoLightboxClose) videoLightboxClose.addEventListener('click', closeVideoLightbox);
+  videoLightbox.addEventListener('click', (e) => {
+    if (e.target === videoLightbox) closeVideoLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && videoLightbox.classList.contains('visible')) closeVideoLightbox();
+  });
+
+  async function populateVideoGrid() {
+    videoGrid.innerHTML = '<p class="upload-status">بنجيب الفيديوهات...</p>';
+    const videos = await listFiles('Videos');
+    videoGrid.innerHTML = '';
+
+    if (videos.length === 0) {
+      videoGrid.innerHTML = '<p class="upload-status">لسه مفيش فيديوهات مرفوعة</p>';
+      return;
+    }
+
+    videos.forEach((item) => {
+      const item_el = document.createElement('div');
+      item_el.className = 'gallery-grid-item video-grid-item';
+
+      const thumb = document.createElement('video');
+      thumb.src = item.url;
+      thumb.preload = 'metadata';
+      thumb.muted = true;
+      thumb.playsInline = true;
+      thumb.title = item.name || 'فيديو محفوظ';
+
+      const playIcon = document.createElement('span');
+      playIcon.className = 'video-grid-play';
+      playIcon.textContent = '▶';
+
+      item_el.appendChild(thumb);
+      item_el.appendChild(playIcon);
+      item_el.addEventListener('click', () => {
+        closeVideoGrid();
+        openVideoLightbox(item.url, item.name);
+      });
+      videoGrid.appendChild(item_el);
+    });
+  }
+
+  function openVideoGrid() {
+    populateVideoGrid();
+    videoGridModal.classList.add('visible');
+    videoGridModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeVideoGrid() {
+    videoGridModal.classList.remove('visible');
+    videoGridModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if (viewAllVideosBtn) viewAllVideosBtn.addEventListener('click', openVideoGrid);
+  if (videoGridClose) videoGridClose.addEventListener('click', closeVideoGrid);
+  videoGridModal.addEventListener('click', (e) => {
+    if (e.target === videoGridModal) closeVideoGrid();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && videoGridModal.classList.contains('visible')) closeVideoGrid();
+  });
+
+  /* ============================================
+     4) UPLOADS — send file to Cloudinary + save its link in Supabase
+     ============================================ */
+
+  async function saveMediaRow(category, name, url) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({ category, name, url })
+      });
+    } catch (err) {
+      // فشل هادئ — الملف اتحفظ على Cloudinary حتى لو فشل تسجيله هنا
+    }
+  }
+
+  async function uploadToDrive({ file, category, statusEl, fileNamePrefix }) {
+    if (!configReady()) {
+      statusEl.textContent = 'لسه الإعدادات متحطتش، كلمي اللي عمل الموقع 💌';
+      return;
+    }
+
+    statusEl.textContent = 'بترفع دلوقتي...';
+
+    try {
+      const fileName = `${fileNamePrefix || 'file'}_${Date.now()}_${file.name || ''}`;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('public_id', fileName);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+        { method: 'POST', body: formData }
+      );
+
+      const result = await response.json();
+
+      if (result.secure_url) {
+        await saveMediaRow(category, fileName, result.secure_url);
+        statusEl.textContent = 'اتحفظت ✓';
+      } else {
+        statusEl.textContent = 'حصل خطأ، جربي تاني';
+      }
+    } catch (err) {
+      statusEl.textContent = 'حصل خطأ، جربي تاني';
+    }
+  }
+
+  /* ---- image upload ---- */
+  const imageInput = document.getElementById('imageInput');
+  const imageStatus = document.getElementById('imageStatus');
+
+  if (imageInput) {
+    imageInput.addEventListener('change', async () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      await uploadToDrive({ file, category: 'Images', statusEl: imageStatus, fileNamePrefix: 'image' });
+      imageInput.value = '';
+      loadUploadedGallery();
+    });
+  }
+
+  /* ---- video upload ---- */
+  const videoInput = document.getElementById('videoInput');
+  const videoStatus = document.getElementById('videoStatus');
+
+  if (videoInput) {
+    videoInput.addEventListener('change', async () => {
+      const file = videoInput.files[0];
+      if (!file) return;
+      await uploadToDrive({ file, category: 'Videos', statusEl: videoStatus, fileNamePrefix: 'video' });
+      videoInput.value = '';
+      loadUploadedGallery();
+    });
+  }
+
+  /* ---- voice note recording ---- */
+  const recordBtn = document.getElementById('recordBtn');
+  const recordLabel = document.getElementById('recordLabel');
+  const voiceStatus = document.getElementById('voiceStatus');
+  const voiceNotesList = document.getElementById('voiceNotesList');
+
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let isRecording = false;
+
+  if (recordBtn) {
+    recordBtn.addEventListener('click', async () => {
+      if (!isRecording) {
+        await startRecording();
+      } else {
+        stopRecording();
       }
     });
-  }, { threshold: 0.35 });
-  envelopeObserver.observe(envelopeScene);
-} else {
-  envelopeScene.classList.add('enter-ready');
-}
-
-envelope.addEventListener('click', openEnvelope);
-envelope.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' || e.key === ' '){
-    e.preventDefault();
-    openEnvelope();
   }
-});
-closeLetterBtn.addEventListener('click', closeEnvelope);
 
-/* ======================================================
-   COUNT-UP TIMER
-====================================================== */
-const elDays  = document.getElementById('cd-days');
-const elHours = document.getElementById('cd-hours');
-const elMins  = document.getElementById('cd-mins');
-const elSecs  = document.getElementById('cd-secs');
-document.getElementById('targetDateLabel').textContent = TARGET_LABEL;
-
-function pad(n){ return String(n).padStart(2, '0'); }
-
-function updateCountdown(){
-  const now = new Date().getTime();
-  let diff = now - START_DATE.getTime();
-
-  if (diff < 0) diff = 0;
-
-  const days  = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const mins  = Math.floor((diff / (1000 * 60)) % 60);
-  const secs  = Math.floor((diff / 1000) % 60);
-
-  elDays.textContent  = pad(days);
-  elHours.textContent = pad(hours);
-  elMins.textContent  = pad(mins);
-  elSecs.textContent  = pad(secs);
-}
-updateCountdown();
-setInterval(updateCountdown, 1000);
-
-/* ======================================================
-   MUSIC CONTROL
-====================================================== */
-const bgMusic     = document.getElementById('bgMusic');
-const musicToggle = document.getElementById('musicToggle');
-const iconPlaying = document.getElementById('iconPlaying');
-const iconPaused  = document.getElementById('iconPaused');
-let musicIsPlaying = false;
-
-function startMusic(){
-  bgMusic.volume = 0.55;
-  const playPromise = bgMusic.play();
-  if (playPromise !== undefined){
-    playPromise.then(() => {
-      musicIsPlaying = true;
-      reflectMusicIcon();
-    }).catch(() => {
-      // autoplay blocked by browser — wait for user interaction
-      musicIsPlaying = false;
-      reflectMusicIcon();
-    });
+  // بعض المتصفحات (خصوصاً Safari/iOS) مش بتدعم audio/webm — بنختار أول صيغة مدعومة فعلياً
+  // عشان التسجيل ميطلعش فاضي أو يفشل في التشغيل بعدين
+  function getSupportedMimeType() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/aac',
+      'audio/ogg;codecs=opus'
+    ];
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+    return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || '';
   }
-}
 
-function reflectMusicIcon(){
-  iconPlaying.style.display = musicIsPlaying ? 'block' : 'none';
-  iconPaused.style.display  = musicIsPlaying ? 'none'  : 'block';
-  musicToggle.setAttribute('aria-label', musicIsPlaying ? 'Pause music' : 'Play music');
-}
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordedChunks = [];
+      const mimeType = getSupportedMimeType();
+      mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const recordedType = mediaRecorder.mimeType || mimeType || 'audio/webm';
 
-musicToggle.addEventListener('click', () => {
-  if (musicIsPlaying){
-    bgMusic.pause();
-    musicIsPlaying = false;
-  } else {
-    bgMusic.play().catch(() => {});
-    musicIsPlaying = true;
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onerror = () => {
+        voiceStatus.textContent = 'حصل خطأ في التسجيل، جربي تاني';
+        stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        recordBtn.classList.remove('recording');
+        recordLabel.textContent = 'ابدئي التسجيل';
+      };
+
+      mediaRecorder.onstop = async () => {
+        // نوقف كل التراكات عشان نطفي الميكروفون
+        stream.getTracks().forEach((track) => track.stop());
+
+        const blob = new Blob(recordedChunks, { type: recordedType });
+
+        if (!blob.size) {
+          voiceStatus.textContent = 'التسجيل طلع فاضي، جربي تاني';
+          return;
+        }
+
+        addVoiceNoteToList(blob);
+
+        // نرفعها أوتوماتيك على Drive
+        const ext = recordedType.includes('mp4') ? 'm4a' : recordedType.includes('ogg') ? 'ogg' : 'webm';
+        const fakeFile = new File([blob], `voice-note.${ext}`, { type: recordedType });
+        await uploadToDrive({ file: fakeFile, category: 'VoiceNotes', statusEl: voiceStatus, fileNamePrefix: 'voice' });
+        loadSavedVoiceNotes(); // نحدّث القايمة تحت في قسم "your voice notes"
+      };
+
+      // بنطلب دفعة بيانات كل ثانية عشان نضمن إن فيه بيانات اترجعت حتى لو التسجيل قصير جداً
+      mediaRecorder.start(1000);
+      isRecording = true;
+      recordBtn.classList.add('recording');
+      recordLabel.textContent = 'وقفي التسجيل';
+      voiceStatus.textContent = 'بتسجل الآن...';
+    } catch (err) {
+      voiceStatus.textContent = 'محتاجة تسمحي بالميكروفون';
+    }
   }
-  reflectMusicIcon();
-});
 
-/* ======================================================
-   GALLERY — swipe / drag / arrow navigation
-====================================================== */
-const galleryTrack = document.getElementById('galleryTrack');
-const galPrev = document.getElementById('galPrev');
-const galNext = document.getElementById('galNext');
-const galDotsWrap = document.getElementById('galDots');
-const galCards = Array.from(galleryTrack.querySelectorAll('.gal-card'));
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    isRecording = false;
+    recordBtn.classList.remove('recording');
+    recordLabel.textContent = 'ابدئي التسجيل';
+  }
 
-// build dots
-galCards.forEach((_, i) => {
-  const dot = document.createElement('span');
-  dot.className = 'gal-dot' + (i === 0 ? ' active' : '');
-  dot.addEventListener('click', () => scrollToCard(i));
-  galDotsWrap.appendChild(dot);
-});
-const dots = Array.from(galDotsWrap.children);
+  function addVoiceNoteToList(blob) {
+    const url = URL.createObjectURL(blob);
+    const li = document.createElement('li');
+    li.className = 'voice-note-item';
 
-function cardScrollAmount(){
-  return galCards[0].getBoundingClientRect().width + 18; // width + gap
-}
+    const audio = document.createElement('audio');
+    audio.src = url;
 
-function scrollToCard(i){
-  galleryTrack.scrollTo({ left: i * cardScrollAmount(), behavior: 'smooth' });
-}
+    li.appendChild(buildVoicePlayer(audio));
+    voiceNotesList.prepend(li);
+  }
 
-galPrev.addEventListener('click', () => {
-  galleryTrack.scrollBy({ left: -cardScrollAmount(), behavior: 'smooth' });
-});
-galNext.addEventListener('click', () => {
-  galleryTrack.scrollBy({ left: cardScrollAmount(), behavior: 'smooth' });
-});
-
-// active dot on scroll
-let scrollTimeout;
-galleryTrack.addEventListener('scroll', () => {
-  clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    const idx = Math.round(galleryTrack.scrollLeft / cardScrollAmount());
-    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
-  }, 80);
-});
-
-// mouse-drag support for desktop (touch works natively via overflow-x + snap)
-let isDown = false, startX = 0, scrollStart = 0;
-
-galleryTrack.addEventListener('mousedown', (e) => {
-  isDown = true;
-  galleryTrack.classList.add('dragging');
-  startX = e.pageX;
-  scrollStart = galleryTrack.scrollLeft;
-});
-window.addEventListener('mouseup', () => {
-  isDown = false;
-  galleryTrack.classList.remove('dragging');
-});
-window.addEventListener('mousemove', (e) => {
-  if (!isDown) return;
-  e.preventDefault();
-  const walk = (e.pageX - startX);
-  galleryTrack.scrollLeft = scrollStart - walk;
-});
-
-/* ======================================================
-   FULLSCREEN IMAGE MODAL
-====================================================== */
-const modal      = document.getElementById('imgModal');
-const modalImg   = document.getElementById('modalImg');
-const modalClose = document.getElementById('modalClose');
-const modalPrev  = document.getElementById('modalPrev');
-const modalNext  = document.getElementById('modalNext');
-let currentModalIndex = 0;
-
-function openModal(index){
-  currentModalIndex = index;
-  renderModalImage();
-  modal.classList.add('open');
-}
-function closeModal(){
-  modal.classList.remove('open');
-}
-function renderModalImage(){
-  const img = galCards[currentModalIndex].querySelector('img');
-  modalImg.src = img.src;
-  modalImg.alt = img.alt;
-}
-function showNextImage(){
-  currentModalIndex = (currentModalIndex + 1) % galCards.length;
-  renderModalImage();
-}
-function showPrevImage(){
-  currentModalIndex = (currentModalIndex - 1 + galCards.length) % galCards.length;
-  renderModalImage();
-}
-
-galCards.forEach((card, i) => {
-  card.addEventListener('click', () => openModal(i));
-});
-modalClose.addEventListener('click', closeModal);
-modalNext.addEventListener('click', showNextImage);
-modalPrev.addEventListener('click', showPrevImage);
-modal.addEventListener('click', (e) => {
-  if (e.target === modal) closeModal();
-});
-document.addEventListener('keydown', (e) => {
-  if (!modal.classList.contains('open')) return;
-  if (e.key === 'Escape') closeModal();
-  if (e.key === 'ArrowRight') showNextImage();
-  if (e.key === 'ArrowLeft') showPrevImage();
-});
-
-/* ======================================================
-   INIT
-====================================================== */
-showScreen(loginScreen);
-passwordInput.focus();
+  /* focus login input on load for convenience */
+  window.addEventListener('load', () => passwordInput.focus());
+})();
